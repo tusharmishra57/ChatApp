@@ -20,25 +20,40 @@ import time
 import sys
 from database_config import get_db_connection_simple as get_db_connection, init_database
 
-# AI Features - Import emotion detector only
+# AI Features - Render-optimized emotion detection
 try:
-    from emotion_detector import EmotionDetector
+    # Try FER first (lightweight for Render)
+    from fer import FER
+    emotion_detector = FER(mtcnn=True)
     EMOTION_AVAILABLE = True
-    print("✓ Emotion detection loaded successfully!")
-except ImportError as e:
-    print(f"⚠ Emotion detection not available: {e}")
-    EMOTION_AVAILABLE = False
+    EMOTION_METHOD = 'FER'
+    print("✓ FER emotion detection loaded!")
+except ImportError:
+    try:
+        # Fallback to custom emotion detector
+        from emotion_detector import EmotionDetector
+        emotion_detector = EmotionDetector()
+        EMOTION_AVAILABLE = True
+        EMOTION_METHOD = 'CUSTOM'
+        print("✓ Custom emotion detection loaded!")
+    except ImportError as e:
+        print(f"⚠ Emotion detection not available: {e}")
+        EMOTION_AVAILABLE = False
+        EMOTION_METHOD = None
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-for-production')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-for-production')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
-# Database configuration
+# Database configuration for Render
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///chat_app.db')
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 app.config['DATABASE_URL'] = DATABASE_URL
+
+# Render environment detection
+IS_RENDER = os.environ.get('RENDER') is not None
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
@@ -386,11 +401,45 @@ def emotion_detect():
         return jsonify({'success': False, 'message': 'Emotion detection not available'})
     
     try:
-        # Create emotion detector instance
-        detector = EmotionDetector()
-        
-        # Capture and analyze emotion
-        result = detector.detect_emotion_from_camera()
+        if EMOTION_METHOD == 'FER':
+            # Use FER for emotion detection
+            import cv2
+            import numpy as np
+            import base64
+            from PIL import Image
+            import io
+            
+            # Get image data from request
+            data = request.get_json()
+            if not data or 'image' not in data:
+                return jsonify({'success': False, 'message': 'No image provided'})
+            
+            # Decode base64 image
+            image_data = data['image'].split(',')[1]
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(io.BytesIO(image_bytes))
+            image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+            
+            # Detect emotion using FER
+            emotions = emotion_detector.detect_emotions(image_cv)
+            
+            if emotions:
+                dominant_emotion = max(emotions[0]['emotions'].items(), key=lambda x: x[1])
+                emotion = dominant_emotion[0]
+                confidence = dominant_emotion[1] * 100
+                
+                result = {
+                    'success': True,
+                    'emotion': emotion,
+                    'confidence': confidence,
+                    'message': f'Detected {emotion} with {confidence:.1f}% confidence'
+                }
+            else:
+                result = {'success': False, 'message': 'No face detected'}
+        else:
+            # Use custom emotion detector
+            detector = EmotionDetector()
+            result = detector.detect_emotion_from_camera()
         
         if result['success']:
             emotion = result['emotion']
@@ -574,24 +623,30 @@ if __name__ == '__main__':
     init_database()
     
     print("=" * 50)
-    print("🚀 Real-Time Chat Website Starting...")
+    print("🚀 ChatApp Starting...")
     print("=" * 50)
-    print("Features available:")
     print("✓ Real-time chat with Socket.IO")
     print("✓ User authentication & registration") 
     print("✓ Online user status")
     print("✓ Profile management")
     if EMOTION_AVAILABLE:
-        print("✓ Emotion detection with camera")
+        print(f"✓ Emotion detection ({EMOTION_METHOD})")
     else:
         print("⚠ Emotion detection disabled")
     print("🎨 MOOD filters coming soon")
-    print("✓ Dark themed UI with animations")
+    print("✓ Dark themed UI")
     print("=" * 50)
-    print("🌐 Server running on: http://localhost:5000")
+    
+    # Get port and environment
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    
+    if IS_RENDER:
+        print(f"🌐 Running on Render - Port: {port}")
+    else:
+        print(f"🌐 Local server: http://localhost:{port}")
+    
     print("=" * 50)
     
     # Run the application
-    port = int(os.environ.get('PORT', 5000))
-    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
     socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

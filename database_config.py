@@ -1,5 +1,5 @@
 """
-Database configuration for ChatApp
+Database configuration for ChatApp - Render deployment
 Supports both SQLite (development) and PostgreSQL (production)
 """
 
@@ -18,16 +18,16 @@ def get_db_connection():
     
     if database_url.startswith('postgresql://') or database_url.startswith('postgres://'):
         if not POSTGRES_AVAILABLE:
-            raise ImportError("psycopg2 not installed. Please install with: pip install psycopg2-binary")
+            raise ImportError("psycopg2 not installed")
         
-        # PostgreSQL connection for production
+        # PostgreSQL connection for production (Render)
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
         
         conn = psycopg2.connect(database_url, cursor_factory=RealDictCursor)
         return conn, 'postgresql'
     else:
-        # SQLite connection for development
+        # SQLite connection for local development
         db_path = database_url.replace('sqlite:///', '')
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
@@ -41,7 +41,7 @@ def init_database():
         cursor = conn.cursor()
         
         if db_type == 'postgresql':
-            # PostgreSQL table creation
+            # PostgreSQL tables for production
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -80,7 +80,7 @@ def init_database():
             ''')
             
         else:
-            # SQLite table creation (existing code)
+            # SQLite tables for local development
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -124,13 +124,12 @@ def init_database():
         print("✓ Database initialized successfully")
         
     except Exception as e:
-        print(f"❌ Database initialization error: {e}")
+        print(f"❌ Database error: {e}")
         conn.rollback()
     finally:
         conn.close()
 
-# Wrapper function for backward compatibility
 def get_db_connection_simple():
-    """Get database connection (simplified for existing code)"""
+    """Simplified connection for existing code"""
     conn, _ = get_db_connection()
     return conn
