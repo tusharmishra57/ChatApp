@@ -20,7 +20,11 @@ import time
 import sys
 from database_config import get_db_connection_simple as get_db_connection, init_database
 
-# AI Features - Render-optimized emotion detection
+# AI Features - Render-optimized with graceful fallback
+EMOTION_AVAILABLE = False
+EMOTION_METHOD = None
+emotion_detector = None
+
 try:
     # Try FER first (lightweight for Render)
     from fer import FER
@@ -36,10 +40,11 @@ except ImportError:
         EMOTION_AVAILABLE = True
         EMOTION_METHOD = 'CUSTOM'
         print("✓ Custom emotion detection loaded!")
-    except ImportError as e:
-        print(f"⚠ Emotion detection not available: {e}")
+    except ImportError:
+        # Graceful fallback - app still works without AI
+        print("⚠ Emotion detection not available - continuing without AI features")
         EMOTION_AVAILABLE = False
-        EMOTION_METHOD = None
+        EMOTION_METHOD = 'NONE'
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-for-production')
@@ -401,47 +406,56 @@ def emotion_detect():
         return jsonify({'success': False, 'message': 'Emotion detection not available'})
     
     try:
-        if EMOTION_METHOD == 'FER':
+        if EMOTION_METHOD == 'FER' and emotion_detector:
             # Use FER for emotion detection
-            import cv2
-            import numpy as np
-            import base64
-            from PIL import Image
-            import io
-            
-            # Get image data from request
-            data = request.get_json()
-            if not data or 'image' not in data:
-                return jsonify({'success': False, 'message': 'No image provided'})
-            
-            # Decode base64 image
-            image_data = data['image'].split(',')[1]
-            image_bytes = base64.b64decode(image_data)
-            image = Image.open(io.BytesIO(image_bytes))
-            image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            
-            # Detect emotion using FER
-            emotions = emotion_detector.detect_emotions(image_cv)
-            
-            if emotions:
-                dominant_emotion = max(emotions[0]['emotions'].items(), key=lambda x: x[1])
-                emotion = dominant_emotion[0]
-                confidence = dominant_emotion[1] * 100
+            try:
+                import cv2
+                import numpy as np
+                import base64
+                from PIL import Image
+                import io
                 
-                result = {
-                    'success': True,
-                    'emotion': emotion,
-                    'confidence': confidence,
-                    'message': f'Detected {emotion} with {confidence:.1f}% confidence'
-                }
-            else:
-                result = {'success': False, 'message': 'No face detected'}
-        else:
+                # Get image data from request
+                data = request.get_json()
+                if not data or 'image' not in data:
+                    return jsonify({'success': False, 'message': 'No image provided'})
+                
+                # Decode base64 image
+                image_data = data['image'].split(',')[1]
+                image_bytes = base64.b64decode(image_data)
+                image = Image.open(io.BytesIO(image_bytes))
+                image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                
+                # Detect emotion using FER
+                emotions = emotion_detector.detect_emotions(image_cv)
+                
+                if emotions:
+                    dominant_emotion = max(emotions[0]['emotions'].items(), key=lambda x: x[1])
+                    emotion = dominant_emotion[0]
+                    confidence = dominant_emotion[1] * 100
+                    
+                    result = {
+                        'success': True,
+                        'emotion': emotion,
+                        'confidence': confidence,
+                        'message': f'Detected {emotion} with {confidence:.1f}% confidence'
+                    }
+                else:
+                    result = {'success': False, 'message': 'No face detected'}
+            except Exception as fer_error:
+                result = {'success': False, 'message': f'FER error: {str(fer_error)}'}
+                
+        elif EMOTION_METHOD == 'CUSTOM' and emotion_detector:
             # Use custom emotion detector
-            detector = EmotionDetector()
-            result = detector.detect_emotion_from_camera()
+            result = emotion_detector.detect_emotion_from_camera()
+        else:
+            # Fallback when no emotion detection available
+            result = {
+                'success': False, 
+                'message': 'Emotion detection is temporarily unavailable. Chat still works!'
+            }
         
-        if result['success']:
+        if result.get('success'):
             emotion = result['emotion']
             confidence = result['confidence']
             

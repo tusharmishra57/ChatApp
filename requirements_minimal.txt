@@ -1,3 +1,4 @@
+# MINIMAL REQUIREMENTS FOR RENDER DEPLOYMENT
 # Core Web Framework
 Flask==3.0.0
 Flask-SocketIO==5.3.6
@@ -13,17 +14,6 @@ python-engineio==4.8.0
 bidict==0.22.1
 eventlet==0.33.3
 
-# Essential packages only - minimal for faster builds
-opencv-python-headless==4.9.0.80
-numpy>=1.21.0
-Pillow>=10.0.0
-
-# Lightweight emotion detection (optional - with fallback)
-fer==22.5.1
-
-# Data Processing - minimal
-requests==2.31.0
-
 # Security
 bcrypt==4.1.2
 
@@ -32,3 +22,6 @@ psycopg2-binary==2.9.9
 
 # Production Server
 gunicorn==21.2.0
+
+# Basic utilities
+requests==2.31.0
