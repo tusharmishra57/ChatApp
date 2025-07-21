@@ -1,0 +1,817 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ChatApp{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 300px 1fr 280px; gap: 1rem; height: 80vh;">
+    
+    <!-- Left Sidebar - Online Users -->
+    <div class="card" style="display: flex; flex-direction: column;">
+        <div style="padding: 1rem; background: rgba(100, 255, 218, 0.1); margin: -2rem -2rem 1rem -2rem;">
+            <h3 style="color: #64ffda; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-people-fill"></i>
+                Online Users
+                <span id="onlineCount" class="badge" style="background: #1de9b6; color: #000; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.8rem;">0</span>
+            </h3>
+        </div>
+        
+        <div id="onlineUsers" style="flex: 1; overflow-y: auto; padding-right: 0.5rem;">
+            <!-- Online users will be populated here -->
+        </div>
+        
+        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="text-align: center; color: #b0bec5; font-size: 0.9rem;">
+                <i class="bi bi-wifi"></i> Connected as <strong style="color: #64ffda;">{{ user.username }}</strong>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Chat Area -->
+    <div class="card" style="display: flex; flex-direction: column;">
+        <!-- Welcome/No Chat Selected -->
+        <div id="noChatSelected" style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: #b0bec5;">
+            <div style="font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;">
+                <i class="bi bi-chat-square-dots"></i>
+            </div>
+            <h3 style="color: #64ffda; margin-bottom: 0.5rem;">Welcome to ChatApp</h3>
+            <p style="margin: 0; font-size: 1.1rem;">Select a user from the sidebar to start chatting</p>
+            <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.7;">Click on any online user to open a private conversation</p>
+        </div>
+        
+        <!-- Individual Chat Area (Hidden by default) -->
+        <div id="chatArea" style="display: none; flex: 1; flex-direction: column;">
+            <!-- Chat Header -->
+            <div style="padding: 1rem; background: rgba(29, 233, 182, 0.1); margin: -2rem -2rem 1rem -2rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <button id="closeChatBtn" style="background: none; border: none; color: #64ffda; font-size: 1.2rem; cursor: pointer; padding: 0.5rem; border-radius: 50%; transition: all 0.3s;">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <div>
+                        <h3 id="chatWithUser" style="color: #1de9b6; margin: 0;">
+                            <i class="bi bi-person-circle"></i> 
+                        </h3>
+                        <div id="chatUserStatus" style="font-size: 0.8rem; color: #64ffda; margin-top: 0.2rem;">
+                            <i class="bi bi-circle-fill" style="font-size: 0.6rem;"></i> Online
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span id="typingIndicator" style="color: #64ffda; font-size: 0.9rem; opacity: 0; transition: opacity 0.3s;">
+                        <i class="bi bi-three-dots"></i> Typing...
+                    </span>
+                </div>
+            </div>
+        
+            <!-- Messages Area -->
+            <div id="messageArea" style="flex: 1; overflow-y: auto; padding-right: 0.5rem; scroll-behavior: smooth;">
+                <!-- Messages will be loaded dynamically for each chat -->
+            </div>
+            
+            <!-- Message Input -->
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                <form id="messageForm" style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <textarea id="messageInput" class="form-control" rows="1" 
+                                  placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                                  style="resize: none; min-height: 45px; max-height: 120px;"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="height: 45px; padding: 0 1.5rem;">
+                        <i class="bi bi-send-fill"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Sidebar - AI Features -->
+    <div class="card" style="overflow: hidden; display: flex; flex-direction: column;">
+        <div style="padding: 1rem; background: rgba(0, 188, 212, 0.1); margin: -2rem -2rem 1rem -2rem;">
+            <h3 style="color: #00bcd4; margin: 0; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-robot"></i> AI Features
+            </h3>
+        </div>
+        
+        <!-- Profile Section -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="position: relative; display: inline-block;">
+                <img src="{{ url_for('static', filename='profiles/' + user.profile_picture) if user.profile_picture != 'default_avatar.png' else url_for('static', filename='default_avatar.png') }}" 
+                     alt="Profile" 
+                     style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #64ffda; object-fit: cover;">
+                <div style="position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; background: #4caf50; border-radius: 50%; border: 2px solid #000;"></div>
+            </div>
+            <h4 style="color: #64ffda; margin: 0.5rem 0;">{{ user.username }}</h4>
+            <a href="{{ url_for('profile') }}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 1rem;">
+                <i class="bi bi-pencil-fill"></i> Edit Profile
+            </a>
+        </div>
+        
+        {% if emotion_available %}
+        <!-- Emotion Detection -->
+        <div class="ai-feature" style="margin-bottom: 1.5rem;">
+            <h4 style="color: #ff9800; margin-bottom: 1rem;">
+                <i class="bi bi-emoji-smile-fill"></i> Emotion Detection
+            </h4>
+            <p style="color: #b0bec5; font-size: 0.9rem; margin-bottom: 1rem;">
+                Detect your current emotion using AI
+            </p>
+            <button id="emotionDetectBtn" class="btn btn-primary" style="width: 100%;">
+                <i class="bi bi-camera-fill"></i> Detect Emotion
+            </button>
+            <div id="emotionResult" style="margin-top: 1rem; text-align: center;"></div>
+            <div id="emotionSendContainer" style="margin-top: 1rem; display: none;">
+                <button id="sendEmotionBtn" class="btn btn-success" style="width: 100%;">
+                    <i class="bi bi-send-fill"></i> Send Emotion to Friend
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mood Filter -->
+        <div class="ai-feature" style="margin-bottom: 1.5rem;">
+            <h4 style="color: #e91e63; margin-bottom: 1rem;">
+                <i class="bi bi-palette-fill"></i> MOOD Filter
+            </h4>
+            <p style="color: #b0bec5; font-size: 0.9rem; margin-bottom: 1rem;">
+                Transform your photo with anime style
+            </p>
+            
+            <!-- Style selector -->
+            <select id="animeStyle" class="form-control" style="margin-bottom: 1rem;">
+                <option value="Shinkai">Shinkai Style</option>
+                <option value="Hayao">Hayao (Miyazaki) Style</option>
+                <option value="Paprika">Paprika Style</option>
+            </select>
+            
+            <button id="moodFilterBtn" class="btn btn-primary" style="width: 100%;">
+                <i class="bi bi-magic"></i> Apply MOOD Filter
+            </button>
+            <div id="moodFilterResult" style="margin-top: 1rem; text-align: center;"></div>
+            <div id="moodSendContainer" style="margin-top: 1rem; display: none;">
+                <button id="sendMoodBtn" class="btn btn-success" style="width: 100%;">
+                    <i class="bi bi-send-fill"></i> Send Filter to Friend
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <div style="text-align: center; color: #b0bec5; margin: 2rem 0;">
+            <i class="bi bi-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+            <p>AI features are not available</p>
+            <small>Emotion detection and mood filters require additional setup</small>
+        </div>
+        {% endif %}
+        
+        <!-- Recent Activity -->
+        <div style="flex: 1; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <h5 style="color: #64ffda; margin-bottom: 1rem;">
+                <i class="bi bi-clock-history"></i> Activity Feed
+            </h5>
+            <div id="activityFeed" style="font-size: 0.8rem; color: #b0bec5;">
+                <div class="activity-item">
+                    <i class="bi bi-dot" style="color: #4caf50;"></i>
+                    Joined the chat
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for AI results -->
+<div id="aiModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="modal-content card" style="max-width: 500px; max-height: 80vh; overflow: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 id="modalTitle" style="color: #64ffda; margin: 0;"></h3>
+            <button id="closeModal" style="background: none; border: none; color: #64ffda; font-size: 1.5rem; cursor: pointer;">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+        </div>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<script>
+// Socket.IO connection
+const socket = io();
+
+// DOM elements
+const messageArea = document.getElementById('messageArea');
+const messageForm = document.getElementById('messageForm');
+const messageInput = document.getElementById('messageInput');
+const onlineUsers = document.getElementById('onlineUsers');
+const onlineCount = document.getElementById('onlineCount');
+const typingIndicator = document.getElementById('typingIndicator');
+const emotionDetectBtn = document.getElementById('emotionDetectBtn');
+const moodFilterBtn = document.getElementById('moodFilterBtn');
+const animeStyle = document.getElementById('animeStyle');
+const aiModal = document.getElementById('aiModal');
+const closeModal = document.getElementById('closeModal');
+const modalTitle = document.getElementById('modalTitle');
+const modalBody = document.getElementById('modalBody');
+const activityFeed = document.getElementById('activityFeed');
+
+// Individual chat elements
+const noChatSelected = document.getElementById('noChatSelected');
+const chatArea = document.getElementById('chatArea');
+const chatWithUser = document.getElementById('chatWithUser');
+const chatUserStatus = document.getElementById('chatUserStatus');
+const closeChatBtn = document.getElementById('closeChatBtn');
+const sendEmotionBtn = document.getElementById('sendEmotionBtn');
+const sendMoodBtn = document.getElementById('sendMoodBtn');
+const emotionSendContainer = document.getElementById('emotionSendContainer');
+const moodSendContainer = document.getElementById('moodSendContainer');
+
+// Current chat state
+let currentChatUser = null;
+let currentEmotionData = null;
+
+// Auto-resize textarea
+messageInput.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// Handle message form submission
+messageForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const message = messageInput.value.trim();
+    if (message && currentChatUser) {
+        socket.emit('send_private_message', {
+            message: message,
+            recipient: currentChatUser,
+            type: 'text'
+        });
+        messageInput.value = '';
+        messageInput.style.height = '45px';
+    }
+});
+
+// Handle Enter key (send message) vs Shift+Enter (new line)
+messageInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        messageForm.dispatchEvent(new Event('submit'));
+    }
+});
+
+// Chat management functions
+function openChat(username) {
+    currentChatUser = username;
+    noChatSelected.style.display = 'none';
+    chatArea.style.display = 'flex';
+    chatWithUser.innerHTML = `<i class="bi bi-person-circle"></i> ${username}`;
+    
+    // Update status
+    if (username === '{{ session.username }}') {
+        chatUserStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.6rem; color: #4caf50;"></i> Yourself';
+    } else {
+        chatUserStatus.innerHTML = '<i class="bi bi-circle-fill" style="font-size: 0.6rem; color: #4caf50;"></i> Online';
+    }
+    
+    // Load chat history
+    loadChatHistory(username);
+    
+    // Focus message input
+    messageInput.focus();
+    messageInput.placeholder = `Type a message to ${username}...`;
+}
+
+function closeChat() {
+    currentChatUser = null;
+    chatArea.style.display = 'none';
+    noChatSelected.style.display = 'flex';
+    messageArea.innerHTML = '';
+    
+    // Hide AI send buttons
+    emotionSendContainer.style.display = 'none';
+    moodSendContainer.style.display = 'none';
+    currentEmotionData = null;
+}
+
+function loadChatHistory(username) {
+    // Clear current messages
+    messageArea.innerHTML = '';
+    
+    // Request chat history from server
+    socket.emit('get_chat_history', { recipient: username });
+}
+
+// Close chat button event
+if (closeChatBtn) {
+    closeChatBtn.addEventListener('click', closeChat);
+}
+
+// Socket event listeners
+socket.on('connect', function() {
+    console.log('Connected to server');
+    addActivity('Connected to chat server', 'success');
+});
+
+socket.on('disconnect', function() {
+    console.log('Disconnected from server');
+    addActivity('Disconnected from server', 'error');
+});
+
+socket.on('receive_private_message', function(data) {
+    // Only display if it's for the current chat
+    if (currentChatUser && (data.sender === currentChatUser || data.recipient === currentChatUser)) {
+        displayMessage(data);
+        scrollToBottom();
+    }
+});
+
+socket.on('chat_history', function(data) {
+    messageArea.innerHTML = '';
+    data.messages.forEach(function(message) {
+        displayMessage(message);
+    });
+    scrollToBottom();
+});
+
+socket.on('user_online', function(data) {
+    updateOnlineUsers(data.online_users);
+    if (data.username !== '{{ session.username }}') {
+        addActivity(`${data.username} joined the chat`, 'info');
+    }
+});
+
+socket.on('user_offline', function(data) {
+    updateOnlineUsers(data.online_users);
+    if (data.username !== '{{ session.username }}') {
+        addActivity(`${data.username} left the chat`, 'info');
+    }
+});
+
+// Display message in chat
+function displayMessage(data) {
+    const messageDiv = document.createElement('div');
+    const isOwnMessage = data.sender === '{{ session.username }}';
+    messageDiv.className = `message ${isOwnMessage ? 'own-message' : ''}`;
+    messageDiv.setAttribute('data-username', data.sender);
+    
+    // Handle different message types
+    let messageContent = data.message;
+    if (data.type === 'emotion' && data.extra_data) {
+        try {
+            const emotionData = JSON.parse(data.extra_data);
+            messageContent = `
+                <div style="background: rgba(100, 255, 218, 0.1); padding: 0.5rem; border-radius: 8px; margin: 0.5rem 0;">
+                    <div style="font-size: 1.5rem; text-align: center;">${getEmotionEmoji(emotionData.emotion)}</div>
+                    <div style="text-align: center; color: #64ffda; font-weight: bold;">${emotionData.emotion.toUpperCase()}</div>
+                    <div style="text-align: center; color: #b0bec5; font-size: 0.8rem;">${emotionData.confidence.toFixed(1)}% confidence</div>
+                </div>
+            `;
+        } catch (e) {
+            messageContent = data.message;
+        }
+    } else if (data.type === 'mood_filter') {
+        // Mood filter feature coming soon
+        messageContent = `
+            <div style="background: linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 193, 7, 0.1)); 
+                       padding: 1rem; border-radius: 15px; margin: 0.5rem 0; 
+                       border: 1px solid rgba(255, 152, 0, 0.3);
+                       box-shadow: 0 4px 15px rgba(255, 152, 0, 0.2);">
+                <div style="text-align: center; color: #ff9800; font-weight: bold; font-size: 1.1rem; margin-bottom: 0.5rem;">
+                    🎨 MOOD Filter - Coming Soon!
+                </div>
+                <div style="text-align: center; color: #b0bec5; font-size: 0.85rem; font-style: italic;">
+                    Amazing anime-style transformations are on the way!
+                </div>
+            </div>
+        `;
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <strong style="color: ${isOwnMessage ? '#64ffda' : '#1de9b6'};">
+                ${data.sender}
+            </strong>
+            <small style="color: #b0bec5;">${data.timestamp}</small>
+        </div>
+        <div class="message-content">${messageContent}</div>
+    `;
+    
+    messageArea.appendChild(messageDiv);
+    
+    // Animate new message
+    messageDiv.style.opacity = '0';
+    messageDiv.style.transform = 'translateY(20px)';
+    setTimeout(() => {
+        messageDiv.style.opacity = '1';
+        messageDiv.style.transform = 'translateY(0)';
+    }, 10);
+}
+
+// Update online users list
+function updateOnlineUsers(users) {
+    onlineCount.textContent = users.length + 1; // +1 for self chat option
+    onlineUsers.innerHTML = '';
+    
+    // Add self chat option first
+    const selfDiv = document.createElement('div');
+    selfDiv.className = 'online-user clickable-user';
+    selfDiv.style.cursor = 'pointer';
+    selfDiv.innerHTML = `
+        <div class="user-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border-radius: 8px; background: rgba(100, 255, 218, 0.1); margin-bottom: 0.5rem; border: 1px solid rgba(100, 255, 218, 0.3); transition: all 0.3s;">
+            <div style="width: 12px; height: 12px; background: #64ffda; border-radius: 50%; animation: pulse 2s infinite;"></div>
+            <div style="flex: 1;">
+                <div style="color: #64ffda; font-weight: bold; font-size: 0.95rem;">
+                    <i class="bi bi-person-fill"></i> Talk to Yourself
+                </div>
+                <div style="color: #b0bec5; font-size: 0.75rem; margin-top: 2px;">
+                    Personal notes & thoughts
+                </div>
+            </div>
+        </div>
+    `;
+    
+    selfDiv.addEventListener('click', () => openChat('{{ session.username }}'));
+    selfDiv.addEventListener('mouseenter', function() {
+        this.querySelector('.user-item').style.background = 'rgba(100, 255, 218, 0.2)';
+        this.querySelector('.user-item').style.transform = 'scale(1.02)';
+    });
+    selfDiv.addEventListener('mouseleave', function() {
+        this.querySelector('.user-item').style.background = 'rgba(100, 255, 218, 0.1)';
+        this.querySelector('.user-item').style.transform = 'scale(1)';
+    });
+    
+    onlineUsers.appendChild(selfDiv);
+    
+    // Add other online users
+    users.forEach(user => {
+        if (user.username !== '{{ session.username }}') {
+            const userDiv = document.createElement('div');
+            userDiv.className = 'online-user clickable-user';
+            userDiv.style.cursor = 'pointer';
+            userDiv.innerHTML = `
+                <div class="user-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.05); margin-bottom: 0.5rem; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;">
+                    <div style="width: 12px; height: 12px; background: #4caf50; border-radius: 50%; animation: pulse 2s infinite;"></div>
+                    <div style="flex: 1;">
+                        <div style="color: #e0e0e0; font-weight: 500; font-size: 0.95rem;">
+                            <i class="bi bi-person-circle"></i> ${user.username}
+                        </div>
+                        <div style="color: #4caf50; font-size: 0.75rem; margin-top: 2px;">
+                            <i class="bi bi-circle-fill" style="font-size: 0.6rem;"></i> Online
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            userDiv.addEventListener('click', () => openChat(user.username));
+            userDiv.addEventListener('mouseenter', function() {
+                this.querySelector('.user-item').style.background = 'rgba(29, 233, 182, 0.1)';
+                this.querySelector('.user-item').style.transform = 'scale(1.02)';
+            });
+            userDiv.addEventListener('mouseleave', function() {
+                this.querySelector('.user-item').style.background = 'rgba(255,255,255,0.05)';
+                this.querySelector('.user-item').style.transform = 'scale(1)';
+            });
+            
+            onlineUsers.appendChild(userDiv);
+        }
+    });
+}
+
+// Scroll to bottom of messages
+function scrollToBottom() {
+    messageArea.scrollTop = messageArea.scrollHeight;
+}
+
+// Add activity to feed
+function addActivity(message, type) {
+    const activityItem = document.createElement('div');
+    activityItem.className = 'activity-item';
+    activityItem.innerHTML = `
+        <i class="bi bi-dot" style="color: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#64ffda'};"></i>
+        ${message}
+    `;
+    activityFeed.insertBefore(activityItem, activityFeed.firstChild);
+    
+    // Keep only latest 10 activities
+    while (activityFeed.children.length > 10) {
+        activityFeed.removeChild(activityFeed.lastChild);
+    }
+}
+
+// AI Feature handlers
+if (emotionDetectBtn) {
+    emotionDetectBtn.addEventListener('click', async function() {
+        this.innerHTML = '<span class="loading"></span> Detecting...';
+        this.disabled = true;
+        
+        try {
+            const response = await fetch('/emotion_detect', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Store emotion data for sending
+                currentEmotionData = data;
+                
+                showModal('Emotion Detection Result', `
+                    <div style="text-align: center;">
+                        <div style="font-size: 3rem; margin: 1rem 0;">${getEmotionEmoji(data.emotion)}</div>
+                        <h3 style="color: #64ffda; margin-bottom: 1rem;">${data.emotion.charAt(0).toUpperCase() + data.emotion.slice(1)}</h3>
+                        <p style="color: #1de9b6; font-size: 1.2rem;">Confidence: ${data.confidence.toFixed(1)}%</p>
+                        <div style="margin-top: 1rem; padding: 1rem; background: rgba(100,255,218,0.1); border-radius: 10px;">
+                            <p style="color: #b0bec5;">${data.message}</p>
+                        </div>
+                    </div>
+                `);
+                
+                // Show send button
+                if (emotionSendContainer) {
+                    emotionSendContainer.style.display = 'block';
+                }
+                
+                addActivity(`Detected emotion: ${data.emotion} (${data.confidence.toFixed(1)}%)`, 'success');
+            } else {
+                showModal('Error', `<p style="color: #f44336;">${data.message}</p>`);
+            }
+        } catch (error) {
+            showModal('Error', `<p style="color: #f44336;">Failed to detect emotion</p>`);
+        }
+        
+        this.innerHTML = '<i class="bi bi-camera-fill"></i> Detect Emotion';
+        this.disabled = false;
+    });
+}
+
+if (moodFilterBtn) {
+    moodFilterBtn.addEventListener('click', async function() {
+        this.innerHTML = '<span class="loading"></span> Checking...';
+        this.disabled = true;
+        
+        try {
+            const response = await fetch('/mood_filter', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({style: animeStyle.value})
+            });
+            
+            const data = await response.json();
+            
+            // Always show coming soon message
+            showModal('🎨 MOOD Filter - Coming Soon!', `
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="bi bi-magic" style="font-size: 4rem; color: #e91e63; margin-bottom: 1.5rem; display: block;"></i>
+                    <h3 style="color: #e91e63; margin-bottom: 1rem;">Anime-Style Transformations</h3>
+                    <p style="color: #b0bec5; margin-bottom: 1.5rem; line-height: 1.6;">
+                        ${data.message || '🎨 MOOD Filter feature is coming soon! Stay tuned for amazing anime-style transformations.'}
+                    </p>
+                    <div style="background: rgba(233, 30, 99, 0.1); padding: 1rem; border-radius: 10px; border: 1px solid rgba(233, 30, 99, 0.3);">
+                        <p style="color: #e91e63; margin: 0; font-weight: bold;">
+                            <i class="bi bi-clock"></i> Feature in Development
+                        </p>
+                        <p style="color: #b0bec5; margin: 0.5rem 0 0 0; font-size: 0.9rem;">
+                            We're working on bringing you incredible AI-powered anime filters!
+                        </p>
+                    </div>
+                </div>
+            `);
+            
+            addActivity('Checked MOOD Filter status', 'info');
+            
+        } catch (error) {
+            showModal('🎨 MOOD Filter - Coming Soon!', `
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="bi bi-magic" style="font-size: 4rem; color: #e91e63; margin-bottom: 1.5rem; display: block;"></i>
+                    <h3 style="color: #e91e63; margin-bottom: 1rem;">Feature Coming Soon!</h3>
+                    <p style="color: #b0bec5; margin-bottom: 1.5rem;">
+                        🎨 Amazing anime-style filters are on the way! Stay tuned.
+                    </p>
+                </div>
+            `);
+        }
+        
+        this.innerHTML = '<i class="bi bi-magic"></i> Apply MOOD Filter';
+        this.disabled = false;
+    });
+}
+
+// Modal functions
+function showModal(title, content) {
+    modalTitle.textContent = title;
+    modalBody.innerHTML = content;
+    aiModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+
+
+closeModal.addEventListener('click', function() {
+    aiModal.style.display = 'none';
+    document.body.style.overflow = 'auto';
+});
+
+aiModal.addEventListener('click', function(e) {
+    if (e.target === aiModal) {
+        closeModal.click();
+    }
+});
+
+// Emotion emojis
+function getEmotionEmoji(emotion) {
+    const emojis = {
+        happy: '😊',
+        sad: '😢',
+        angry: '😠',
+        surprise: '😲',
+        fear: '😨',
+        disgust: '🤢',
+        neutral: '😐'
+    };
+    return emojis[emotion] || '🙂';
+}
+
+// Send emotion to friend
+if (sendEmotionBtn) {
+    sendEmotionBtn.addEventListener('click', function() {
+        if (currentEmotionData && currentChatUser) {
+            const emotionMessage = `🤖 AI Emotion Detection Result: ${getEmotionEmoji(currentEmotionData.emotion)} ${currentEmotionData.emotion.charAt(0).toUpperCase() + currentEmotionData.emotion.slice(1)} (${currentEmotionData.confidence.toFixed(1)}% confidence)`;
+            
+            socket.emit('send_private_message', {
+                message: emotionMessage,
+                recipient: currentChatUser,
+                type: 'emotion',
+                emotion_data: currentEmotionData
+            });
+            
+            addActivity(`Sent emotion to ${currentChatUser}`, 'success');
+            
+            // Hide send button after sending
+            emotionSendContainer.style.display = 'none';
+        } else {
+            alert('Please select a user to chat with first!');
+        }
+    });
+}
+
+// Send mood filter to friend - Feature coming soon
+if (sendMoodBtn) {
+    sendMoodBtn.addEventListener('click', function() {
+        showModal('Feature Coming Soon', `
+            <div style="text-align: center; color: #ff9800;">
+                <i class="bi bi-hourglass-split" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <p>MOOD Filter sharing will be available soon!</p>
+            </div>
+        `);
+    });
+}
+
+
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+    addActivity('Welcome to ChatApp!', 'success');
+});
+</script>
+
+<style>
+    .message {
+        margin-bottom: 1rem;
+        padding: 0.8rem;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.03);
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.3s ease;
+    }
+    
+    .message.own-message {
+        background: rgba(100, 255, 218, 0.1);
+        border-left: 3px solid #64ffda;
+    }
+    
+    .message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.3rem;
+        font-size: 0.9rem;
+    }
+    
+    .message-content {
+        color: #e0e0e0;
+        line-height: 1.4;
+        word-wrap: break-word;
+    }
+    
+    .ai-feature {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 10px;
+        padding: 1rem;
+        border-left: 3px solid #64ffda;
+    }
+    
+    .activity-item {
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        animation: slideInLeft 0.3s ease;
+    }
+    
+    .modal {
+        backdrop-filter: blur(5px);
+    }
+    
+    .modal-content {
+        animation: scaleIn 0.3s ease;
+    }
+    
+    .badge {
+        animation: bounce 2s infinite;
+    }
+    
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% {
+            transform: translateY(0);
+        }
+        40% {
+            transform: translateY(-3px);
+        }
+        60% {
+            transform: translateY(-1px);
+        }
+    }
+    
+    /* Scrollbar styling */
+    #messageArea::-webkit-scrollbar,
+    #onlineUsers::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    #messageArea::-webkit-scrollbar-track,
+    #onlineUsers::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+    }
+    
+    #messageArea::-webkit-scrollbar-thumb,
+    #onlineUsers::-webkit-scrollbar-thumb {
+        background: rgba(100, 255, 218, 0.5);
+        border-radius: 3px;
+    }
+    
+    #messageArea::-webkit-scrollbar-thumb:hover,
+    #onlineUsers::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 255, 218, 0.8);
+    }
+    
+    /* Responsive design */
+    @media (max-width: 1024px) {
+        .container > div {
+            grid-template-columns: 250px 1fr 250px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .container > div {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+        
+        .card {
+            max-height: none;
+        }
+        
+        #messageArea {
+            height: 400px;
+        }
+    }
+</style>
+{% endblock %}

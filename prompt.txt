@@ -1,0 +1,22 @@
+Code a website which has following features-
+
+A chat website through which users should be able to talk to each other in real time.
+The website should have a login system which should be able to authenticate users.
+The website should have a registration system which should be able to register new users.
+When one user logs in or sign up in the website. It should show on the other user's home screen that "this user is online".
+In the chat screen, Their should be an option of Emotion Detection, by clicking on this option, the camera should open and it should recognize the face and detect the current emotion of the person. Use the python model that i have made.
+Their should be another option of "MOOD Filter", by clicking on this option, the camera should open, capture the image and convert it into an image that is being converted by using AnimeGANv2 model which I have included in this folder.
+Thier should be a profile option in the home screen where user can change it's profile picture by choosing from device and also change it's name.
+
+The UI should be cool looking and dark themed with some gradients. You can include some animations as well in it.
+
+
+
+
+Remove the Account Overview from the profile page.
+In the AI Feature, if I detect some emotion, I should be able to send it to my friend. If I select MOOD filter, I should be able to send it to my friend.
+Their should not be a general chat. Instead, Thier should be a chat page which opens when I click on the icon of some users who are online.
+Thier should also a self option in the Online user. On clicking that option, I should be able to talk to myself.
+In the Home page, remove "overflow: hidden", I am not able to see the full page.
+
+

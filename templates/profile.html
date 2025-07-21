@@ -1,0 +1,402 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - ChatApp{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    
+    <!-- Profile Header -->
+    <div class="card glow" style="text-align: center; margin-bottom: 2rem;">
+        <div style="position: relative; display: inline-block; margin-bottom: 1rem;">
+            <img id="profileImage" 
+                 src="{{ url_for('static', filename='profiles/' + user.profile_picture) if user.profile_picture != 'default_avatar.png' else url_for('static', filename='default_avatar.png') }}" 
+                 alt="Profile Picture" 
+                 style="width: 120px; height: 120px; border-radius: 50%; border: 4px solid #64ffda; object-fit: cover; transition: all 0.3s ease;">
+            <div style="position: absolute; bottom: 5px; right: 5px; background: #4caf50; width: 25px; height: 25px; border-radius: 50%; border: 3px solid #000;"></div>
+        </div>
+        
+        <h2 style="color: #64ffda; margin: 0.5rem 0;">{{ user.username }}</h2>
+        <p style="color: #b0bec5; margin-bottom: 0.5rem;">{{ user.email }}</p>
+        <p style="color: #b0bec5; font-size: 0.9rem;">
+            <i class="bi bi-calendar-fill"></i> Joined {{ user.created_at }}
+        </p>
+        <p style="color: #b0bec5; font-size: 0.9rem;">
+            <i class="bi bi-clock-fill"></i> Last active {{ user.last_login }}
+        </p>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        
+        <!-- Profile Settings -->
+        <div class="card">
+            <h3 style="color: #1de9b6; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-person-gear"></i> Profile Settings
+            </h3>
+            
+            <!-- Flash messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div id="flashMessages" style="margin-bottom: 1rem;">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'success' if category == 'success' else 'error' }}">
+                                <i class="bi bi-{{ 'check-circle-fill' if category == 'success' else 'exclamation-triangle-fill' }}"></i>
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST" enctype="multipart/form-data" id="profileForm">
+                
+                <!-- Username -->
+                <div class="form-group">
+                    <label for="username">
+                        <i class="bi bi-person-fill"></i> Username
+                    </label>
+                    <input type="text" id="username" name="username" class="form-control" 
+                           value="{{ user.username }}" required minlength="3" maxlength="20">
+                    <small style="color: #b0bec5; font-size: 0.8rem;">
+                        3-20 characters, alphanumeric and underscores only
+                    </small>
+                </div>
+                
+                <!-- Email (read-only) -->
+                <div class="form-group">
+                    <label for="email">
+                        <i class="bi bi-envelope-fill"></i> Email
+                    </label>
+                    <input type="email" id="email" name="email" class="form-control" 
+                           value="{{ user.email }}" readonly 
+                           style="background: rgba(255, 255, 255, 0.02); cursor: not-allowed;">
+                    <small style="color: #b0bec5; font-size: 0.8rem;">
+                        Email cannot be changed for security reasons
+                    </small>
+                </div>
+                
+                <!-- Profile Picture Upload -->
+                <div class="form-group">
+                    <label for="profile_picture">
+                        <i class="bi bi-camera-fill"></i> Profile Picture
+                    </label>
+                    <div style="position: relative;">
+                        <input type="file" id="profile_picture" name="profile_picture" 
+                               accept="image/*" class="form-control" style="opacity: 0; position: absolute; z-index: -1;">
+                        <div id="fileUploadArea" 
+                             style="border: 2px dashed rgba(100, 255, 218, 0.3); border-radius: 10px; padding: 2rem; text-align: center; cursor: pointer; transition: all 0.3s ease;">
+                            <i class="bi bi-cloud-upload" style="font-size: 2rem; color: #64ffda; margin-bottom: 1rem;"></i>
+                            <p style="color: #b0bec5; margin: 0;">
+                                Click to upload or drag and drop
+                            </p>
+                            <small style="color: #b0bec5;">PNG, JPG, GIF up to 16MB</small>
+                        </div>
+                    </div>
+                    <div id="imagePreview" style="margin-top: 1rem; display: none;">
+                        <img id="previewImg" style="max-width: 200px; height: auto; border-radius: 10px; border: 2px solid #64ffda;">
+                        <button type="button" id="removePreview" 
+                                style="display: block; margin: 0.5rem auto 0; background: #f44336; color: white; border: none; padding: 0.3rem 1rem; border-radius: 5px; cursor: pointer;">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="bi bi-save-fill"></i> Update Profile
+                </button>
+            </form>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <h3 style="color: #00bcd4; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                <i class="bi bi-lightning-fill"></i> Quick Actions
+            </h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary" style="text-align: left;">
+                    <i class="bi bi-house-fill"></i> Return to Chat
+                </a>
+                
+                <button id="downloadDataBtn" class="btn btn-secondary" style="text-align: left;">
+                    <i class="bi bi-download"></i> Download My Data
+                </button>
+                
+                <button id="clearHistoryBtn" class="btn btn-secondary" style="text-align: left;">
+                    <i class="bi bi-trash-fill"></i> Clear Chat History
+                </button>
+            </div>
+            
+            <!-- Danger Zone -->
+            <div style="border: 1px solid #f44336; border-radius: 10px; padding: 1rem; background: rgba(244, 67, 54, 0.05);">
+                <h4 style="color: #f44336; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Danger Zone
+                </h4>
+                <p style="color: #b0bec5; font-size: 0.9rem; margin-bottom: 1rem;">
+                    These actions are permanent and cannot be undone.
+                </p>
+                
+                <button id="changePasswordBtn" class="btn btn-danger" style="width: 100%; margin-bottom: 0.5rem;">
+                    <i class="bi bi-shield-lock-fill"></i> Change Password
+                </button>
+                
+                <button id="deleteAccountBtn" class="btn btn-danger" style="width: 100%;">
+                    <i class="bi bi-person-x-fill"></i> Delete Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Password Change Modal -->
+<div id="passwordModal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+    <div class="modal-content card" style="max-width: 400px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h3 style="color: #64ffda; margin: 0;">Change Password</h3>
+            <button id="closePasswordModal" style="background: none; border: none; color: #64ffda; font-size: 1.5rem; cursor: pointer;">
+                <i class="bi bi-x-circle-fill"></i>
+            </button>
+        </div>
+        
+        <form id="passwordForm">
+            <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" id="currentPassword" class="form-control" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="newPassword">New Password</label>
+                <input type="password" id="newPassword" class="form-control" required minlength="6">
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmNewPassword">Confirm New Password</label>
+                <input type="password" id="confirmNewPassword" class="form-control" required minlength="6">
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                Update Password
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    // File upload handling
+    const fileUploadArea = document.getElementById('fileUploadArea');
+    const profilePictureInput = document.getElementById('profile_picture');
+    const imagePreview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+    const removePreview = document.getElementById('removePreview');
+    const profileImage = document.getElementById('profileImage');
+    
+    // Click to upload
+    fileUploadArea.addEventListener('click', () => {
+        profilePictureInput.click();
+    });
+    
+    // Drag and drop
+    fileUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.borderColor = '#64ffda';
+        fileUploadArea.style.background = 'rgba(100, 255, 218, 0.1)';
+    });
+    
+    fileUploadArea.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.borderColor = 'rgba(100, 255, 218, 0.3)';
+        fileUploadArea.style.background = 'transparent';
+    });
+    
+    fileUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadArea.style.borderColor = 'rgba(100, 255, 218, 0.3)';
+        fileUploadArea.style.background = 'transparent';
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            profilePictureInput.files = files;
+            previewImage(files[0]);
+        }
+    });
+    
+    // File input change
+    profilePictureInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            previewImage(e.target.files[0]);
+        }
+    });
+    
+    // Preview image function
+    function previewImage(file) {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                imagePreview.style.display = 'block';
+                profileImage.src = e.target.result; // Update main profile image too
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+    
+    // Remove preview
+    removePreview.addEventListener('click', function() {
+        imagePreview.style.display = 'none';
+        profilePictureInput.value = '';
+        // Reset to original image
+        profileImage.src = "{{ url_for('static', filename='profiles/' + user.profile_picture) if user.profile_picture != 'default_avatar.png' else url_for('static', filename='default_avatar.png') }}";
+    });
+    
+    // Modal handling
+    const passwordModal = document.getElementById('passwordModal');
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    const closePasswordModal = document.getElementById('closePasswordModal');
+    const passwordForm = document.getElementById('passwordForm');
+    
+    changePasswordBtn.addEventListener('click', function() {
+        passwordModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    });
+    
+    closePasswordModal.addEventListener('click', function() {
+        passwordModal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+        passwordForm.reset();
+    });
+    
+    passwordModal.addEventListener('click', function(e) {
+        if (e.target === passwordModal) {
+            closePasswordModal.click();
+        }
+    });
+    
+    // Password form validation
+    passwordForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmNewPassword').value;
+        
+        if (newPassword !== confirmPassword) {
+            alert('New passwords do not match');
+            return;
+        }
+        
+        // Here you would typically send the password change request to the server
+        alert('Password change functionality would be implemented here');
+        closePasswordModal.click();
+    });
+    
+    // Other action buttons
+    document.getElementById('downloadDataBtn').addEventListener('click', function() {
+        alert('Data download functionality would be implemented here');
+    });
+    
+    document.getElementById('clearHistoryBtn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear your chat history? This action cannot be undone.')) {
+            alert('Chat history clear functionality would be implemented here');
+        }
+    });
+    
+    document.getElementById('deleteAccountBtn').addEventListener('click', function() {
+        if (confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently remove all your data.')) {
+            if (confirm('This is your final warning. Are you absolutely sure you want to delete your account?')) {
+                alert('Account deletion functionality would be implemented here');
+            }
+        }
+    });
+    
+    // Auto-hide flash messages
+    const flashMessages = document.getElementById('flashMessages');
+    if (flashMessages) {
+        setTimeout(() => {
+            flashMessages.style.opacity = '0';
+            flashMessages.style.transform = 'translateY(-20px)';
+            setTimeout(() => {
+                flashMessages.style.display = 'none';
+            }, 300);
+        }, 5000);
+    }
+    
+    // Load message count (placeholder)
+    setTimeout(() => {
+        document.getElementById('messageCount').textContent = Math.floor(Math.random() * 100) + 1;
+    }, 1000);
+    
+    // Form validation
+    const profileForm = document.getElementById('profileForm');
+    const usernameInput = document.getElementById('username');
+    
+    usernameInput.addEventListener('input', function() {
+        const username = this.value;
+        
+        // Real-time validation
+        if (username.length < 3 || username.length > 20) {
+            this.style.borderColor = '#f44336';
+            this.setCustomValidity('Username must be 3-20 characters long');
+        } else if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            this.style.borderColor = '#f44336';
+            this.setCustomValidity('Username can only contain letters, numbers, and underscores');
+        } else {
+            this.style.borderColor = '#4caf50';
+            this.setCustomValidity('');
+        }
+    });
+    
+    // Profile image hover effect
+    profileImage.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.05)';
+        this.style.boxShadow = '0 0 30px rgba(100, 255, 218, 0.5)';
+    });
+    
+    profileImage.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+        this.style.boxShadow = 'none';
+    });
+});
+</script>
+
+<style>
+    .modal {
+        backdrop-filter: blur(5px);
+    }
+    
+    .modal-content {
+        animation: scaleIn 0.3s ease;
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    #fileUploadArea:hover {
+        border-color: #64ffda;
+        background: rgba(100, 255, 218, 0.05);
+    }
+    
+    .form-control:invalid {
+        border-color: #f44336;
+        box-shadow: 0 0 10px rgba(244, 67, 54, 0.3);
+    }
+    
+    .form-control:valid {
+        border-color: #4caf50;
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+        .container > div > div {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Login - ChatApp{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="card glow" style="width: 100%; max-width: 400px;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="bi bi-box-arrow-in-right" style="font-size: 3rem; color: #64ffda; margin-bottom: 1rem;"></i>
+            <h2 style="color: #64ffda;">Welcome Back</h2>
+            <p style="color: #b0bec5;">Sign in to your account</p>
+        </div>
+        
+        <!-- Alert area -->
+        <div id="alertArea"></div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">
+                    <i class="bi bi-person-fill"></i> Username or Email
+                </label>
+                <input type="text" id="username" name="username" class="form-control" 
+                       placeholder="Enter your username or email" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">
+                    <i class="bi bi-lock-fill"></i> Password
+                </label>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" class="form-control" 
+                           placeholder="Enter your password" required>
+                    <button type="button" id="togglePassword" 
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); 
+                                   background: none; border: none; color: #64ffda; cursor: pointer;">
+                        <i class="bi bi-eye-fill"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <span id="loginText">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </span>
+                <span id="loginSpinner" style="display: none;">
+                    <span class="loading"></span> Signing in...
+                </span>
+            </button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <p style="color: #b0bec5; margin-bottom: 1rem;">Don't have an account?</p>
+            <a href="{{ url_for('register') }}" class="btn btn-secondary">
+                <i class="bi bi-person-plus-fill"></i> Create Account
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const alertArea = document.getElementById('alertArea');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const loginText = document.getElementById('loginText');
+    const loginSpinner = document.getElementById('loginSpinner');
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        if (type === 'password') {
+            icon.className = 'bi bi-eye-fill';
+        } else {
+            icon.className = 'bi bi-eye-slash-fill';
+        }
+    });
+    
+    // Show alert function
+    function showAlert(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+        alertArea.innerHTML = `
+            <div class="alert ${alertClass}">
+                <i class="bi bi-${type === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill'}"></i>
+                ${message}
+            </div>
+        `;
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            alertArea.innerHTML = '';
+        }, 5000);
+    }
+    
+    // Handle form submission
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        // Show loading state
+        loginText.style.display = 'none';
+        loginSpinner.style.display = 'inline';
+        
+        const formData = {
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value
+        };
+        
+        try {
+            const response = await fetch('{{ url_for("login") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("dashboard") }}';
+                }, 1000);
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch (error) {
+            showAlert('An error occurred. Please try again.', 'error');
+        }
+        
+        // Hide loading state
+        loginText.style.display = 'inline';
+        loginSpinner.style.display = 'none';
+    });
+    
+    // Add enter key support
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loginForm.dispatchEvent(new Event('submit'));
+        }
+    });
+    
+    // Focus animation
+    const inputs = document.querySelectorAll('.form-control');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'scale(1.02)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+
+<style>
+    .form-group {
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        transform: translateY(-2px);
+    }
+    
+    #togglePassword {
+        transition: all 0.3s ease;
+    }
+    
+    #togglePassword:hover {
+        color: #1de9b6 !important;
+        transform: translateY(-50%) scale(1.1);
+    }
+</style>
+{% endblock %}

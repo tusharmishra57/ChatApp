@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Register - ChatApp{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh;">
+    <div class="card glow" style="width: 100%; max-width: 450px;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="bi bi-person-plus-fill" style="font-size: 3rem; color: #1de9b6; margin-bottom: 1rem;"></i>
+            <h2 style="color: #1de9b6;">Join ChatApp</h2>
+            <p style="color: #b0bec5;">Create your account to get started</p>
+        </div>
+        
+        <!-- Alert area -->
+        <div id="alertArea"></div>
+        
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="username">
+                    <i class="bi bi-person-fill"></i> Username
+                </label>
+                <input type="text" id="username" name="username" class="form-control" 
+                       placeholder="Choose a unique username" required minlength="3" maxlength="20">
+                <small style="color: #b0bec5; font-size: 0.8rem;">3-20 characters, alphanumeric only</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="email">
+                    <i class="bi bi-envelope-fill"></i> Email
+                </label>
+                <input type="email" id="email" name="email" class="form-control" 
+                       placeholder="Enter your email address" required>
+                <small style="color: #b0bec5; font-size: 0.8rem;">We'll never share your email</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">
+                    <i class="bi bi-lock-fill"></i> Password
+                </label>
+                <div style="position: relative;">
+                    <input type="password" id="password" name="password" class="form-control" 
+                           placeholder="Create a strong password" required minlength="6">
+                    <button type="button" id="togglePassword" 
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); 
+                                   background: none; border: none; color: #1de9b6; cursor: pointer;">
+                        <i class="bi bi-eye-fill"></i>
+                    </button>
+                </div>
+                <!-- Password strength indicator -->
+                <div id="passwordStrength" style="margin-top: 0.5rem;">
+                    <small style="color: #b0bec5;">Password strength: </small>
+                    <span id="strengthText" style="font-weight: bold;">Weak</span>
+                    <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 0.3rem;">
+                        <div id="strengthBar" style="height: 100%; border-radius: 2px; transition: all 0.3s ease; width: 0%; background: #f44336;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="confirmPassword">
+                    <i class="bi bi-shield-check-fill"></i> Confirm Password
+                </label>
+                <input type="password" id="confirmPassword" name="confirmPassword" class="form-control" 
+                       placeholder="Confirm your password" required minlength="6">
+                <small id="passwordMatch" style="font-size: 0.8rem;"></small>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 1rem;">
+                <span id="registerText">
+                    <i class="bi bi-person-plus-fill"></i> Create Account
+                </span>
+                <span id="registerSpinner" style="display: none;">
+                    <span class="loading"></span> Creating account...
+                </span>
+            </button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <p style="color: #b0bec5; margin-bottom: 1rem;">Already have an account?</p>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary">
+                <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const registerForm = document.getElementById('registerForm');
+    const alertArea = document.getElementById('alertArea');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('password');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    const registerText = document.getElementById('registerText');
+    const registerSpinner = document.getElementById('registerSpinner');
+    const strengthText = document.getElementById('strengthText');
+    const strengthBar = document.getElementById('strengthBar');
+    const passwordMatch = document.getElementById('passwordMatch');
+    
+    // Toggle password visibility
+    togglePassword.addEventListener('click', function() {
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        const icon = this.querySelector('i');
+        if (type === 'password') {
+            icon.className = 'bi bi-eye-fill';
+        } else {
+            icon.className = 'bi bi-eye-slash-fill';
+        }
+    });
+    
+    // Password strength checker
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 0;
+        let strengthLabel = '';
+        let strengthColor = '';
+        
+        if (password.length >= 6) strength += 1;
+        if (password.match(/[a-z]/)) strength += 1;
+        if (password.match(/[A-Z]/)) strength += 1;
+        if (password.match(/[0-9]/)) strength += 1;
+        if (password.match(/[^a-zA-Z0-9]/)) strength += 1;
+        
+        switch (strength) {
+            case 0:
+            case 1:
+                strengthLabel = 'Weak';
+                strengthColor = '#f44336';
+                break;
+            case 2:
+            case 3:
+                strengthLabel = 'Medium';
+                strengthColor = '#ff9800';
+                break;
+            case 4:
+            case 5:
+                strengthLabel = 'Strong';
+                strengthColor = '#4caf50';
+                break;
+        }
+        
+        strengthText.textContent = strengthLabel;
+        strengthText.style.color = strengthColor;
+        strengthBar.style.width = (strength * 20) + '%';
+        strengthBar.style.background = strengthColor;
+        
+        checkPasswordMatch();
+    });
+    
+    // Password confirmation checker
+    confirmPasswordInput.addEventListener('input', checkPasswordMatch);
+    
+    function checkPasswordMatch() {
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (confirmPassword === '') {
+            passwordMatch.textContent = '';
+            return;
+        }
+        
+        if (password === confirmPassword) {
+            passwordMatch.textContent = '✓ Passwords match';
+            passwordMatch.style.color = '#4caf50';
+        } else {
+            passwordMatch.textContent = '✗ Passwords do not match';
+            passwordMatch.style.color = '#f44336';
+        }
+    }
+    
+    // Show alert function
+    function showAlert(message, type) {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-error';
+        alertArea.innerHTML = `
+            <div class="alert ${alertClass}">
+                <i class="bi bi-${type === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill'}"></i>
+                ${message}
+            </div>
+        `;
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            alertArea.innerHTML = '';
+        }, 5000);
+    }
+    
+    // Form validation
+    function validateForm() {
+        const username = document.getElementById('username').value.trim();
+        const email = document.getElementById('email').value.trim();
+        const password = passwordInput.value;
+        const confirmPassword = confirmPasswordInput.value;
+        
+        if (username.length < 3 || username.length > 20) {
+            showAlert('Username must be 3-20 characters long', 'error');
+            return false;
+        }
+        
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            showAlert('Username can only contain letters, numbers, and underscores', 'error');
+            return false;
+        }
+        
+        if (password.length < 6) {
+            showAlert('Password must be at least 6 characters long', 'error');
+            return false;
+        }
+        
+        if (password !== confirmPassword) {
+            showAlert('Passwords do not match', 'error');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    // Handle form submission
+    registerForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        if (!validateForm()) {
+            return;
+        }
+        
+        // Show loading state
+        registerText.style.display = 'none';
+        registerSpinner.style.display = 'inline';
+        
+        const formData = {
+            username: document.getElementById('username').value.trim(),
+            email: document.getElementById('email').value.trim(),
+            password: passwordInput.value
+        };
+        
+        try {
+            const response = await fetch('{{ url_for("register") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => {
+                    window.location.href = '{{ url_for("login") }}';
+                }, 2000);
+            } else {
+                showAlert(data.message, 'error');
+            }
+        } catch (error) {
+            showAlert('An error occurred. Please try again.', 'error');
+        }
+        
+        // Hide loading state
+        registerText.style.display = 'inline';
+        registerSpinner.style.display = 'none';
+    });
+    
+    // Focus animations
+    const inputs = document.querySelectorAll('.form-control');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'scale(1.02)';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+
+<style>
+    .form-group {
+        transition: all 0.3s ease;
+    }
+    
+    .form-control:focus {
+        transform: translateY(-2px);
+    }
+    
+    #togglePassword {
+        transition: all 0.3s ease;
+    }
+    
+    #togglePassword:hover {
+        color: #00bcd4 !important;
+        transform: translateY(-50%) scale(1.1);
+    }
+    
+    small {
+        transition: all 0.3s ease;
+    }
+</style>
+{% endblock %}
