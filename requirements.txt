@@ -31,5 +31,8 @@ requests==2.31.0
 # Security
 bcrypt==4.0.1
 
-# Production Server (optional)
+# Database
+psycopg2-binary==2.9.7
+
+# Production Server
 gunicorn==21.2.0

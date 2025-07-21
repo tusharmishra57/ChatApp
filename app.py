@@ -18,6 +18,7 @@ import numpy as np
 import threading
 import time
 import sys
+from database_config import get_db_connection_simple as get_db_connection, init_database
 
 # AI Features - Import emotion detector only
 try:
@@ -29,9 +30,15 @@ except ImportError as e:
     EMOTION_AVAILABLE = False
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-change-this'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this-for-production')
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# Database configuration
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///chat_app.db')
+if DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+app.config['DATABASE_URL'] = DATABASE_URL
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
@@ -47,77 +54,10 @@ chat_rooms = {'general': {'users': [], 'messages': []}}
 # Initialize emotion detector if available
 # AI systems will be initialized per request to avoid conflicts
 
-# Database initialization
-def init_db():
-    """Initialize the SQLite database"""
-    conn = sqlite3.connect('chat_app.db')
-    cursor = conn.cursor()
-    
-    # Users table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            profile_picture TEXT DEFAULT 'default_avatar.png',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            is_online INTEGER DEFAULT 0
-        )
-    ''')
-    
-    # Messages table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            username TEXT NOT NULL,
-            room TEXT NOT NULL DEFAULT 'general',
-            message TEXT NOT NULL,
-            message_type TEXT DEFAULT 'text',
-            attachment_url TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    # Emotion records table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS emotion_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            emotion TEXT NOT NULL,
-            confidence REAL NOT NULL,
-            image_path TEXT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    # Mood filter records table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS mood_filter_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            original_image TEXT,
-            filtered_image TEXT NOT NULL,
-            filter_style TEXT NOT NULL,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id)
-        )
-    ''')
-    
-    conn.commit()
-    conn.close()
-    print("✓ Database initialized")
+
 
 # Helper functions
-def get_db_connection():
-    """Get database connection"""
-    conn = sqlite3.connect('chat_app.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+
 
 def hash_password(password):
     """Hash password using bcrypt"""
@@ -254,6 +194,28 @@ def index():
     if 'user_id' in session:
         return redirect(url_for('dashboard'))
     return render_template('index.html')
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for monitoring"""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        conn.close()
+        return jsonify({
+            'status': 'healthy',
+            'message': 'ChatApp is running properly',
+            'features': {
+                'chat': True,
+                'emotion_detection': EMOTION_AVAILABLE,
+                'mood_filter': 'coming_soon'
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'message': f'Health check failed: {str(e)}'
+        }), 500
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -609,7 +571,7 @@ def handle_join_room(data):
 
 if __name__ == '__main__':
     # Initialize database
-    init_db()
+    init_database()
     
     print("=" * 50)
     print("🚀 Real-Time Chat Website Starting...")
@@ -630,4 +592,6 @@ if __name__ == '__main__':
     print("=" * 50)
     
     # Run the application
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    socketio.run(app, debug=debug_mode, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

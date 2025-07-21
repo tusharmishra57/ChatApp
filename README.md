@@ -74,6 +74,35 @@ python app.py
 ### 5. Open in Browser
 Navigate to `http://localhost:5000`
 
+## 🌐 Deployment
+
+### Deploy to Render (Production)
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+1. **Fork this repository** to your GitHub account
+
+2. **Create a Render account** at [render.com](https://render.com)
+
+3. **Create a new Web Service:**
+   - Connect your GitHub repository
+   - Use these settings:
+     - **Build Command:** `pip install -r requirements.txt`
+     - **Start Command:** `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT app:app`
+
+4. **Add Environment Variables:**
+   ```
+   SECRET_KEY=your-secret-key-here
+   FLASK_ENV=production
+   DATABASE_URL=postgresql://... (auto-provided by Render)
+   ```
+
+5. **Create PostgreSQL Database** (optional, for production use):
+   - Create a new PostgreSQL service in Render
+   - Connect it to your web service
+
+📖 **Detailed Guide:** [RENDER_DEPLOYMENT_GUIDE.md](RENDER_DEPLOYMENT_GUIDE.md)
+
 ## 📦 Installation Details
 
 ### Core Dependencies
