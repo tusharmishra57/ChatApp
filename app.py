@@ -60,7 +60,20 @@ app.config['DATABASE_URL'] = DATABASE_URL
 # Render environment detection
 IS_RENDER = os.environ.get('RENDER') is not None
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+# Socket.IO with flexible async mode
+try:
+    # Try gevent first (for Render)
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
+    print("✓ Using gevent async mode")
+except:
+    try:
+        # Fallback to eventlet
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+        print("✓ Using eventlet async mode")
+    except:
+        # Final fallback to threading
+        socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+        print("✓ Using threading async mode")
 
 # Ensure upload directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
